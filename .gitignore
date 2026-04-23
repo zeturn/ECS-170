@@ -7,3 +7,7 @@ __MACOSX/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Course datasets and large archives (do not track raw data)
+**/data/stage_2_data/*.csv
+*.zip
