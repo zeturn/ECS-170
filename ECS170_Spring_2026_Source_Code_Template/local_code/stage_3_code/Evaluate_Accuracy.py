@@ -6,6 +6,17 @@ import numpy as np
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 
+#accuracy
+#macro_precision
+#macro_recall
+#macro_f1
+#micro_precision
+#micro_recall
+#micro_f1
+#weighted_precision
+#weighted_recall
+#weighted_f1
+
 class Evaluate_Accuracy(evaluate):
     data = None
 

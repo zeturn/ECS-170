@@ -1,0 +1,382 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.65in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+\lstset{
+    basicstyle=\ttfamily\scriptsize,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\linespread{0.90}
+\setlength{\textfloatsep}{4pt}
+\setlength{\floatsep}{4pt}
+\setlength{\intextsep}{4pt}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{0pt}
+\titlespacing*{\section}{0pt}{6pt}{2pt}
+\titlespacing*{\subsection}{0pt}{5pt}{1pt}
+\newcommand{\codepath}[1]{\path{#1}}
+
+\begin{document}
+
+\begin{center}
+    {\Large \textbf{\textcolor{blue!60!black}{ECS 170}}}\\
+    \vspace{4pt}
+    {\Large \textbf{\textcolor{blue!60!black}{Artificial Intelligence}}}\\
+    \vspace{4pt}
+    Spring 2026\\
+    \vspace{6pt}
+    \textit{Course Project: Stage 3 Report}
+\end{center}
+
+\section*{Team Information}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.10}
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.34\textwidth}|}
+\hline
+\multicolumn{3}{|c|}{\textbf{Enter Your Team Name Here}} \\
+\hline
+Xinyi Li & 922481338 & ccwli@ucdavis.edu \\
+\hline
+Victor Zhang& 921858564 & vcozhang@ucdavis.edu\\
+\hline
+Hongrui Zhao & 923210265 & hrzh@ucdavis.edu \\
+\hline
+Student 4: Name & Student 4: ID & Student 4: Email \\
+\hline
+Student 5: Name & Student 5: ID & Student 5: Email \\
+\hline
+\end{tabular}
+\end{table}
+
+\section*{Section 1: Task Description}
+
+This stage studies image classification using convolutional neural networks on three datasets: handwritten digits, ORL human faces, and CIFAR colored objects. Each task is a supervised multi-class classification problem. The CNN models learn visual patterns from training images and predict labels for unseen testing images. CNNs are appropriate for this stage because convolutional layers learn local image features such as strokes, edges, textures, and object shapes, while pooling and fully connected layers help convert image features into class predictions. 
+
+\section*{Section 2: Model Description}
+
+\subsection*{2.1 Digit CNN Architecture}
+
+The handwritten digit model is a CNN built with PyTorch. The network receives grayscale digit images with shape $1 \times 28 \times 28$ and outputs logits for 10 digit classes.
+
+Model architecture:
+
+\begin{lstlisting}
+Input: 1 x 28 x 28 grayscale image
+        |
+Conv2d(1, 16, kernel_size=5, padding=2) + ReLU
+        |
+MaxPool2d(2 x 2)
+        |
+Conv2d(16, 32, kernel_size=5, padding=2) + ReLU
+        |
+MaxPool2d(2 x 2)
+        |
+Conv2d(32, 64, kernel_size=3, padding=1) + ReLU
+        |
+AdaptiveAvgPool2d(4 x 4)
+        |
+Flatten: 64 x 4 x 4 = 1024
+        |
+Linear(1024, 128) + ReLU + Dropout(0.25)
+        |
+Linear(128, 10)
+        |
+Output: 10 digit class logits
+\end{lstlisting}
+
+The first two convolutional layers are followed by max pooling to reduce the spatial size while preserving important stroke features. The third convolutional layer increases the feature depth to 64 channels. Adaptive average pooling converts the feature map into a fixed $4 \times 4$ spatial size, which makes the fully connected layer input dimension stable. Dropout is used before the final classifier to reduce overfitting.
+
+
+\subsection*{2.2 ORL HumanFace CNN Architecture}
+The ORL Human Face CNN architecture is built with PyTorch. It configured raw images of $112 \times 92 \times 3$ to a single channel (grayscale) for efficiency. The architecture features three convolutional layers for hierarchical feature extraction, followed by adaptive pooling to ensure a fixed input size for the fully connected classification head.
+
+\begin{center}
+    \small
+    \begin{tabular}{c}
+        \textbf{Input Layer} $112 \times 92 \times 1$ (Grayscale Image) \\
+        $\downarrow$ \\
+        \textbf{Convolutional Block 1}
+        Conv2d (5x5 kernel, 16 filters) $\rightarrow$ ReLU $\rightarrow$ MaxPool (2x2) \\
+        $\downarrow$ \\
+        \textbf{Convolutional Block 2}
+        Conv2d (5x5 kernel, 32 filters) $\rightarrow$ ReLU $\rightarrow$ MaxPool (2x2) \\
+        $\downarrow$ \\
+        \textbf{Convolutional Block 3}
+        Conv2d (3x3 kernel, 64 filters) $\rightarrow$ ReLU \\
+        $\downarrow$ \\
+        \textbf{Pooling \& Flattening}
+        Adaptive Average Pool ($4 \times 4$) $\rightarrow$ Flatten ($64 \times 4 \times 4 = 1024$) \\
+        $\downarrow$ \\
+        \textbf{Fully Connected Block}
+        FC (1024 $\rightarrow$ 128) $\rightarrow$ ReLU $\rightarrow$ Dropout (0.25) \\
+        $\downarrow$ \\
+        \textbf{Output Layer}
+        FC (128 $\rightarrow$ 40)  \\
+        $\downarrow$ \\
+        \textbf{40 Face Classes}
+    \end{tabular}
+\end{center}
+The final output logits are passed into the CrossEntropyLoss function, which internally applies the softmax operation during training.
+
+\subsection*{2.3 Colored Object CNN Architecture}
+
+The colored object model is a CNN built with PyTorch. The network receives RGB images with shape $3 \times 32 \times 32$. It uses three convolutional blocks followed by an additional convolution layer, global average pooling, dropout, and a final linear classifier.
+
+Model architecture:
+
+\begin{lstlisting}
+Input: 3 x 32 x 32 RGB image
+        |
+Conv Block 1: Conv2d(3, 32, 3x3) + BatchNorm + ReLU
+              Conv2d(32, 32, 3x3) + BatchNorm + ReLU
+        |
+MaxPool2d(2) + Dropout2d(0.10)
+        |
+Conv Block 2: Conv2d(32, 64, 3x3) + BatchNorm + ReLU
+              Conv2d(64, 64, 3x3) + BatchNorm + ReLU
+        |
+MaxPool2d(2) + Dropout2d(0.15)
+        |
+Conv Block 3: Conv2d(64, 128, 3x3) + BatchNorm + ReLU
+              Conv2d(128, 128, 3x3) + BatchNorm + ReLU
+        |
+MaxPool2d(2) + Dropout2d(0.20)
+        |
+Conv2d(128, 256, 3x3) + BatchNorm + ReLU
+        |
+AdaptiveAvgPool2d(1 x 1)
+        |
+Flatten + Dropout(0.35)
+        |
+Linear(256, 10)
+        |
+Output: 10 class logits
+\end{lstlisting}
+
+The convolutional blocks extract increasingly high-level features from the image. Batch normalization stabilizes training and helps the model converge more smoothly. ReLU is used as the nonlinear activation function. Dropout is added to reduce overfitting. Adaptive average pooling converts the final feature map into a compact 256-dimensional representation before classification.
+The model outputs raw logits for ten classes. During training, cross entropy loss is used to compare the predicted logits with the ground-truth class labels.
+
+\section*{Section 3: Experiment Settings}
+
+\subsection*{3.1 Dataset Description}
+
+This stage uses image datasets for object recognition. The handwritten digit dataset contains grayscale digit images, the face dataset contains human face images, and the colored object dataset contains RGB CIFAR images.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{l r r l l}
+\toprule
+Dataset & Training Samples & Testing Samples & Image Shape & Label Type \\
+\midrule
+Handwritten Digit & 60,000 & 10,000 & $28 \times 28$ grayscale & 10-class integer label \\
+Human Face (ORL) & 360 & 40 & $112 \times 92 \times 1 $ grayscale & 40-class integer label\\
+
+CIFAR Colored Object & 50,000 & 10,000 & $32 \times 32 \times 3$ RGB & 10-class integer label \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the handwritten digit dataset, pixel values are normalized from the original 0--255 range into floating-point values in the 0--1 range. Since the images are grayscale, the input is reshaped into $N \times 1 \times 28 \times 28$ before being passed into the CNN.
+
+The Human Face ORL dataset consists of 40 subjects with 10 images each. Nine images per person are used for training and one for testing. In Dataset\_Loader Method, we convert the images to grayscale and normalize pixel values to $[0, 1]$.
+
+For the CIFAR colored object dataset, the images are RGB color images with three input channels. The loader keeps the color channels and applies the corresponding image normalization and augmentation steps.
+\subsection*{3.2 Detailed Experimental Setups}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{l l l l l l l}
+\toprule
+Dataset & Input & Classes & Epochs & Batch & Optimizer & LR \\
+\midrule
+Digit & $28\times28\times1$ & 10 & 20 & 64 & Adam & 0.001 \\
+ORL Face & $112\times92\times1$ & 40 & 35 & 64 & Adam & 0.001 \\
+CIFAR & $32\times32\times3$ & 10 & 30 & 128 & AdamW & 0.001 \\
+\bottomrule
+\end{tabular}
+\caption{Main experimental settings.}
+\end{table}
+
+All models used CrossEntropyLoss and random seed 2. The digit and ORL models normalized pixels by dividing by 255.0. The CIFAR model used AdamW with weight decay 0.0005, CosineAnnealingLR, random horizontal flip, and random crop with reflection padding. These additional CIFAR settings were used to improve generalization on the harder RGB object dataset.
+
+\subsection*{3.3 Evaluation Metrics}
+
+The main metric used by the submitted evaluation code is accuracy:
+\(\text{Accuracy} = \frac{\text{Number of Correct Predictions}}{\text{Number of Total Predictions}}\).
+
+Accuracy is appropriate because the Stage 3 tasks are supervised image classification tasks. The digit and colored object datasets both have 10 classes. In addition to accuracy, precision, recall, and F1 score can be computed from saved prediction files to provide a more complete evaluation.
+
+For multi-class evaluation, macro precision, macro recall, and macro F1 are useful because they compute each class independently and then average across classes. This treats each class equally.
+
+\subsection*{3.4 Source Code}
+
+The source code for dataset loading, CNN models, training, evaluation, result saving, and plotting is included in our submitted project folder. The main scripts are \codepath{script_digit_cnn.py}, \codepath{script_face_cnn.py}, and \codepath{script_cifar_cnn.py}. The code is also available at:
+https://github.com/zeturn/ECS-170
+
+\subsection*{3.5 Training Convergence Plots}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{digit_cnn_training_loss.png}
+        \caption{Digit CNN training loss.}
+        \label{fig:digit_loss}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{digit_cnn_accuracy.png}
+        \caption{Digit CNN accuracy.}
+        \label{fig:digit_acc}
+    \end{minipage}
+\end{figure}
+
+For the digit CNN, training loss decreased sharply in the first few epochs and continued declining until epoch 20. Training and testing accuracy improved quickly and stayed close, indicating stable convergence and no serious overfitting.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{cnn_training_loss.png}
+        \caption{ORL CNN training loss.}
+        \label{fig:orl_loss}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{cnn_accuracy.png}
+        \caption{ORL CNN accuracy.}
+        \label{fig:orl_acc}
+    \end{minipage}
+\end{figure}
+
+For the ORL CNN, training loss decreased from about 3.69 to 0.19 over 35 epochs. The largest drop occurred around epochs 5--15, and the curve flattened near the end, showing gradual convergence. Training and testing accuracy increased consistently and reached 94.2\% and 97.5\%. The slightly higher testing accuracy is reasonable because dropout is disabled during evaluation and the test set contains only 40 images, making the result sensitive to sample-level variation.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{cifar_cnn_training_loss.png}
+        \caption{CIFAR CNN training loss.}
+        \label{fig:cifar_loss}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{cifar_cnn_accuracy.png}
+        \caption{CIFAR CNN accuracy.}
+        \label{fig:cifar_acc}
+    \end{minipage}
+\end{figure}
+
+For the colored object CNN, training loss decreased steadily over 30 epochs and both training/testing accuracy improved throughout training. The final training accuracy is higher than testing accuracy, which is expected because the model is optimized on training data. The gap is moderate, suggesting that dropout, weight decay, batch normalization, and data augmentation helped reduce overfitting.
+
+\subsection*{3.6 Model Performance}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{l r r r r r r}
+\toprule
+Dataset & Loss & Train Acc & Test Acc & Macro P & Macro R & Macro F1 \\
+\midrule
+Digit & 0.0095 & 0.9985 & 0.9936 & -- & -- & -- \\
+ORL Face & 0.1916 & 0.9417 & 0.9750 & 0.9625 & 0.9750 & 0.9667 \\
+CIFAR & 0.4039 & 0.9142 & 0.8780 & 0.8776 & 0.8780 & 0.8773 \\
+\bottomrule
+\end{tabular}
+\caption{Final performance summary for the three CNN models.}
+\end{table}
+
+For the handwritten digit dataset, the final saved prediction result contains 10,000 testing predictions, and the final testing accuracy is 0.9936. The model reached 99.36\% testing accuracy, which is expected because handwritten digits have clear stroke patterns that CNNs can learn effectively.
+
+For the ORL dataset, the best result was obtained with learning rate 0.001. At epoch 35, the model reached training loss 0.1916, training accuracy 0.9417, testing accuracy 0.9750, macro precision 0.9625, macro recall 0.9750, and macro F1 score 0.9667. This indicates strong face recognition performance despite the small dataset size.
+
+For the CIFAR colored object dataset, the final saved prediction result contains 10,000 testing predictions, and the final testing accuracy is 0.8780. Additional metrics were computed by \codepath{script/stage_3_script/script_evaluate_metrics.py} and stored in \codepath{result/stage_3_result/cifar_cnn_evaluation_metrics.csv}. The model achieved macro F1 0.8773 and weighted F1 0.8773. The best testing accuracy was reached at epoch 30, with training loss 0.4039, training accuracy 0.9142, and testing accuracy 0.8780. Per-class metrics were saved in \codepath{result/stage_3_result/cifar_cnn_class_metrics.csv}, and the confusion matrix was saved in \codepath{result/stage_3_result/cifar_cnn_confusion_matrix.csv}.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\caption{Confusion matrix for CIFAR CNN testing predictions. Rows are true labels and columns are predicted labels.}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrrrrrrr}
+\toprule
+True \textbackslash{} Pred & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 \\
+\midrule
+0 & 890 & 6 & 23 & 9 & 4 & 0 & 3 & 5 & 43 & 17 \\
+1 & 3 & 951 & 0 & 2 & 0 & 1 & 2 & 0 & 9 & 32 \\
+2 & 37 & 0 & 783 & 29 & 30 & 36 & 54 & 19 & 4 & 8 \\
+3 & 14 & 2 & 25 & 726 & 36 & 123 & 41 & 19 & 7 & 7 \\
+4 & 6 & 1 & 14 & 27 & 887 & 22 & 20 & 20 & 3 & 0 \\
+5 & 3 & 2 & 15 & 87 & 27 & 830 & 4 & 27 & 3 & 2 \\
+6 & 5 & 1 & 19 & 24 & 12 & 9 & 921 & 4 & 4 & 1 \\
+7 & 6 & 1 & 5 & 20 & 24 & 27 & 0 & 913 & 0 & 4 \\
+8 & 25 & 10 & 3 & 3 & 1 & 1 & 2 & 0 & 942 & 13 \\
+9 & 10 & 34 & 0 & 3 & 1 & 1 & 4 & 1 & 9 & 937 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+\subsection*{3.7 Ablation Studies}
+
+For the handwritten digit dataset, the main tuning goal was to verify that a standard CNN architecture can learn digit features effectively. The final model uses three convolutional layers, max pooling, adaptive average pooling, dropout, Adam optimization, and cross entropy loss. The final result already reaches 99.36\% testing accuracy, so additional tuning is expected to provide only small improvements.
+
+For the ORL dataset, we conducted an ablation study on the learning rate. We compared three values: 0.01, 0.001, and 0.0005.
+\begin{itemize}
+    \item \textbf{LR 0.01:} Showed unstable initial convergence and reached a lower testing accuracy of 90.0\%.
+    \item \textbf{LR 0.001:} Provided the best balance, reaching the highest testing accuracy of 97.5\%. 
+    \item \textbf{LR 0.0005:} Showed much slower convergence in early epochs but eventually reached a strong testing accuracy of 95.0\%. 
+\end{itemize}
+
+For the CIFAR colored object dataset, an ablation study was performed on the training length hyper-parameter. The model architecture, optimizer, batch size, learning rate, weight decay, data augmentation, and dataset split were kept the same. The only changed setting was the effective maximum training epoch. The goal was to study whether longer training improves convergence and testing performance.
+
+The comparison was computed from \codepath{result/stage_3_result/cifar_cnn_learning_curve.csv}, which records the model performance after each epoch.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{r r r r}
+\toprule
+Effective Max Epoch & Training Loss & Training Accuracy & Testing Accuracy \\
+\midrule
+5 & 0.8755 & 0.7673 & 0.7591 \\
+10 & 0.6494 & 0.8463 & 0.8300 \\
+20 & 0.4665 & 0.9013 & 0.8733 \\
+30 & 0.4039 & 0.9142 & 0.8780 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ablation results show that increasing the number of training epochs improves both training accuracy and testing accuracy. The largest improvement occurs from epoch 5 to epoch 10, where the testing accuracy increases from 0.7591 to 0.8300. After epoch 20, the improvement becomes smaller, increasing from 0.8733 to 0.8780 by epoch 30. This indicates that the model gradually converges and that 30 epochs gives the best final result among the compared training lengths.
+\section*{Section 4: Conclusion}
+
+This project implemented CNN models for handwritten digit, ORL face, and CIFAR colored-object classification. The digit CNN achieved 99.36\% testing accuracy, the ORL face CNN achieved 97.5\%, and the CIFAR CNN achieved 87.8\%. The learning curves show stable convergence across all datasets. The results confirm that CNNs effectively learn spatial image features, while more difficult RGB object classification benefits from stronger regularization, data augmentation, and longer training. Future improvements could include deeper architectures, residual connections, stronger augmentation, or pretrained models.
+
+\end{document}

@@ -22,19 +22,23 @@ class Method_CNN(method, nn.Module):
     def __init__(self, mName, mDescription):
         method.__init__(self, mName, mDescription)
         nn.Module.__init__(self)
-        self.prefix = mName.lower().replace(" ", "_")
+        self.prefix = mName.lower().replace(" ", "_") # used for saving history
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.max_epoch = None
         self.learning_rate = None
         self.batch_size = None
 
+        # Three convolutional layers with increasing channel sizes
         self.conv1 = nn.Conv2d(1, 16, kernel_size=5, padding=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=5, padding=2)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+
         self.pool = nn.MaxPool2d(2, 2)
-        self.dropout = nn.Dropout(0.25)
+        self.dropout = nn.Dropout(0.25) # Avoid overfitting
         self.adaptive_pool = nn.AdaptiveAvgPool2d((4, 4))
+
+        # Fully connected layers for classification
         self.fc1 = nn.Linear(64 * 4 * 4, 128)
         self.fc2 = nn.Linear(128, self.num_classes)
         self.history = []
@@ -42,20 +46,27 @@ class Method_CNN(method, nn.Module):
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
+
         x = F.relu(self.conv3(x))
+
         x = self.adaptive_pool(x)
-        x = x.reshape(x.shape[0], -1)
+        x = x.reshape(x.shape[0], -1) # Flatten for fully connected layers
         x = self.dropout(F.relu(self.fc1(x)))
         x = self.fc2(x)
         return x
 
     def _prepare_X(self, X):
+
+        # 转换为张量 float32
         X = torch.FloatTensor(np.array(X, dtype=np.float32))
         if X.max() > 1.0:
             X = X / 255.0
 
+        # 如果输入是 3D（例如 N x H x W），在第二个维度插入通道维度，变为 N x 1 x H x W（假设灰度图像）
         if len(X.shape) == 3:
             X = X.unsqueeze(1)
+        
+        # 确保通道在前
         if len(X.shape) == 4 and X.shape[-1] in [1, 3] and X.shape[1] not in [1, 3]:
             X = X.permute(0, 3, 1, 2)
         return X
@@ -84,11 +95,13 @@ class Method_CNN(method, nn.Module):
         X_test = self._prepare_X(X_test)
         y_test = self._prepare_y(y_test)
 
-        #check
+        # 超参数 Check
         print(">>> learning rate actually used:", self.learning_rate)
         print(">>> batch size actually used:", self.batch_size)
         print(">>> max_epoch actually used:", self.max_epoch)
 
+
+        # 如果不是 1 通道，重新定义 conv1
         in_channels = X_train.shape[1]
         self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=5, padding=2).to(self.device)
 
@@ -96,7 +109,7 @@ class Method_CNN(method, nn.Module):
         if found_classes != self.num_classes:
             self.num_classes = found_classes
             self.fc2 = nn.Linear(128, self.num_classes).to(self.device)
-
+        # 如果数据集中类别数不等于默认的 self.num_classes，重新创建 self.fc2 输出层
 
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         loss_function = nn.CrossEntropyLoss()
@@ -106,7 +119,7 @@ class Method_CNN(method, nn.Module):
         test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=self.batch_size, shuffle=False)
 
         self.history = []
-        for epoch in range(1, self.max_epoch + 1):
+        for epoch in range(1, self.max_epoch + 1): # 从1开始计数
             self.train()
             total_loss = 0.0
             total_count = 0
@@ -116,10 +129,10 @@ class Method_CNN(method, nn.Module):
                 batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
 
                 optimizer.zero_grad()
-                y_pred = self.forward(batch_X)
+                y_pred = self.forward(batch_X) # 前向传播得到 logits
                 train_loss = loss_function(y_pred, batch_y)
-                train_loss.backward()
-                optimizer.step()
+                train_loss.backward() 
+                optimizer.step()    # 参数更新
 
                 total_loss += train_loss.item() * batch_X.shape[0]
                 total_count += batch_X.shape[0]
@@ -129,6 +142,7 @@ class Method_CNN(method, nn.Module):
             avg_loss = total_loss / total_count
             train_acc = correct_train / total_count
 
+            # 评估
             self.eval()
             correct_test = 0
             with torch.no_grad():
