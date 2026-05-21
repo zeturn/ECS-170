@@ -11,3 +11,7 @@ __pycache__/
 # Course datasets and large archives (do not track raw data)
 **/data/stage_2_data/*.csv
 *.zip
+
+stage_4_data/stage_4_data/
+ECS170_Spring_2026_Source_Code_Template/report/stage_4_report.md
+ECS170_Spring_2026_Source_Code_Template/report/stage_4_report.tex
